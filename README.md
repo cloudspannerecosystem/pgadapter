@@ -3,9 +3,9 @@
 ## Introduction
 Spanner-PGAdapter is a simple, MITM, forward, non-transparent proxy, which 
 translates Postgres wire protocol into the Cloud Spanner equivalent. By running
-this proxy locally, any Postgres client (including the SQL command-line client
-PSQL) should function seamlessly by simply pointing its outbound port to the 
-this proxy's inbound port.
+this proxy locally, any Postgres client (including PSQL) should function
+seamlessly by simply pointing its outbound port to the this proxy's inbound 
+port.
 
 Additionally to translation, this proxy also concerns itself with authentication
 and to some extent, connection pooling. Translation for the most part is simply
@@ -40,30 +40,23 @@ in-process server.
 2. Execute `java -jar <jar-file> <options>`.
 
 The following options are required to run the proxy:
-  
-```    
--p <projectname>
+* p
   * The project name where the desired Spanner database is running.
-    
--i <instanceid>
+* i
   * The instance ID where the desired Spanner database is running.
-
--d <databasename>
+* d
   * The Spanner database name.
-
--c <credentialspath>
-  * The full path for the file containing the service account credentials in JSON 
-    format.
-  * Do remember to grant the service account sufficient credentials to access the
+* c
+  * The full path for the file containing the service account credentials in
+    JSON format.
+  * Instructions for generating the aforementioned file are found [here](https://cloud.google.com/iam/docs/creating-managing-service-account-keys)
+  * Do remember to give the service account sufficient credentials to access the
     database.
-```
 
 The following options are optional:
-```    
--s <port>
+* s
   * The inbound port for the proxy. Defaults to 5432.
-   
--a
+* a
   * Use authentication when connecting. Currently authentication is not strictly
     implemented in the proxy layer, as it is expected to be run locally, and
     will ignore any connection not stemming from localhost. It is however a
@@ -71,19 +64,16 @@ The following options are optional:
     authenticate. Note that SSL is not included for the same reason that
     authentication logic is not: since all connections are local, sniffing
     traffic should not generally be a concern.
-
--q
+* q
   * PSQL Mode. Use this option when fronting PSQL. This option will incur some
     performance penalties due to query matching and translation and as such is
     not recommended for production. It is further not guaranteed to perfectly
     match PSQL logic. Please only use this mode when using PSQL.
-
--f <POSTGRESQL|SPANNER>
+* f
   * The data result format coming back to the client from the proxy. By default,
     this is POSTGRESQL, but you can choose SPANNER format if you do not wish the
     data to be modified and the client used can handle it.
-
--b
+* b
   * Force the server to send data back in binary PostgreSQL format when no
     specific format has been requested. The PostgreSQL wire protocol specifies 
     that the server should send data in text format in those cases. This 
@@ -93,18 +83,17 @@ The following options are optional:
     simple query mode will always return results in text format. If you do not 
     know what extended query mode and simple query mode is, then you should 
     probably not be using this setting.
-
--j <commandmetadatapath>
+* j
   * The full path for a file containing a JSON object to do SQL translation
-  based on RegEx replacement. Any item matching the input_pattern will be
-  replaced by the output_pattern string, wherein capture groups are allowed and
-  their order is specified via the matcher_array item. Match replacement must be
-  defined via %s in the output_pattern string. Set matcher_array to [] if no
-  matches exist. User-specified patterns will precede internal matches. Escaped
-  and general regex syntax matches Java RegEx syntax; more information on the
-  Java RegEx syntax found here: 
-  https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html
+  based on RegEx replacement. Any item matching the input_pattern will be 
+  replaced by the output_pattern string, wherein capture groups are allowed
+  and their order is specified via the matcher_array item. Match replacement
+  must be defined via %s in the output_pattern string. Set matcher_array to []
+  if no matches exist. User-specified patterns will precede internal matches.
+  Escaped and general regex syntax matches Java RegEx syntax.
     * Example:
+
+        ```json
         { 
           "commands": 
             [ 
@@ -120,8 +109,8 @@ The following options are optional:
               }
             ]
         }
-        
-        
+        ```
+        ```
         Input queries:
         "SELECT * FROM users;"
         "ab12"
@@ -129,13 +118,11 @@ The following options are optional:
         Output queries:
         "SELECT 1;"
         "second number: 2, first number: 1"
-```
-An example of a simple run string:
+        ```
 
-``` 
-java -jar <jar-file> -p <project name> -i <instance id> -d <database name> -c
-<path to credentials file> -s 5432 
-```
+An example of a simple run string:
+`java -jar <jar-file> -p <project name> -i <instance id> -d <database name> -c
+<path to credentials file> -s 5432`
 
 ### In-process
 1. Add google-cloud-spanner-pgadapter as a dependency to your project.
