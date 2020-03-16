@@ -44,18 +44,14 @@ public class DynamicCommand extends Command {
 
     @Override
     public String translate() {
-      if (this.metadata.getMatcherOrder().isEmpty()) {
-        return this.matcher.replaceAll(this.metadata.getOutputPattern());
-      } else {
-        List<String> matcherList = new ArrayList<>();
-        for (String argumentPosition : this.metadata.getMatcherOrder()) {
-          matcherList.add(
-              StatementParser.singleQuoteEscape(
-                  this.matcher.group(argumentPosition)
-              )
-          );
-        }
-        return String.format(this.metadata.getOutputPattern(), matcherList.toArray());
+      List<String> matcherList = new ArrayList<>();
+      for (String argumentPosition : this.metadata.getMatcherOrder()) {
+        matcherList.add(
+            StatementParser.singleQuoteEscape(
+                this.matcher.group(argumentPosition)
+            )
+        );
       }
+      return String.format(this.metadata.getOutputPattern(), matcherList.toArray());
     }
 }
