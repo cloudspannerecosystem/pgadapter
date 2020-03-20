@@ -266,7 +266,7 @@ public class PSQLTest {
   public void testDescribeTableAttributesTranslates() throws SQLException {
     // PSQL equivalent: \d <table> (4)
     String sql =
-        "SELECT c.oid::pg_catalog.regclass FROM pg_catalog.pg_class c, pg_catalog.pg_inherits i WHERE c.oid=i.inhparent AND i.inhrelid = '-2264987671676060158' AND c.relkind != 'p' ORDER BY inhseqno;\n";
+        "SELECT c.oid::pg_catalog.regclass FROM pg_catalog.pg_class c, pg_catalog.pg_inherits i WHERE c.oid=i.inhparent AND i.inhrelid = '-2264987671676060158' AND c.relkind != 'p' ORDER BY inhseqno;";
     String result =
         "select 1 as oid from UNNEST([]);";
 
@@ -279,7 +279,7 @@ public class PSQLTest {
   public void testDescribeMoreTableAttributesTranslates() throws SQLException {
     // PSQL equivalent: \d <table> (5)
     String sql =
-        "SELECT c.oid::pg_catalog.regclass FROM pg_catalog.pg_class c, pg_catalog.pg_inherits i WHERE c.oid=i.inhrelid AND i.inhparent = '-2264987671676060158' ORDER BY c.relname;\n";
+        "SELECT c.oid::pg_catalog.regclass FROM pg_catalog.pg_class c, pg_catalog.pg_inherits i WHERE c.oid=i.inhrelid AND i.inhparent = '-2264987671676060158' ORDER BY c.relname;";
     String result =
         "select 1 as oid from UNNEST([]);";
 
@@ -702,6 +702,31 @@ public class PSQLTest {
 
     psqlStatement = new PSQLStatement(secondSQL, connectionHandler);
     Assert.assertEquals(psqlStatement.getSql(), expectedSecondResult);
+  }
+
+  @Test
+  public void testMatcherGroupInPlaceReplacements() throws Exception {
+    String inputJSON = ""
+        + "{"
+        + " \"commands\": "
+        + "   [ "
+        + "     {"
+        + "       \"input_pattern\": \"^SELECT (?<expression>.*) FROM (?<table>.*);$\", "
+        + "       \"output_pattern\": \"TABLE: ${table}, EXPRESSION: ${expression}\", "
+        + "       \"matcher_array\": []"
+        + "     }"
+        + "   ]"
+        + "}";
+
+    JSONParser parser = new JSONParser();
+    Mockito.when(server.getOptions()).thenReturn(options);
+    Mockito.when(options.getCommandMetadataJSON()).thenReturn((JSONObject) parser.parse(inputJSON));
+
+    String sql = "SELECT * FROM USERS;";
+    String expectedResult = "TABLE: USERS, EXPRESSION: *";
+
+    PSQLStatement psqlStatement = new PSQLStatement(sql, connectionHandler);
+    Assert.assertEquals(psqlStatement.getSql(), expectedResult);
   }
 
   @Test
