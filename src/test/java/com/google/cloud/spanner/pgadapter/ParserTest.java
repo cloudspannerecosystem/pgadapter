@@ -36,6 +36,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -180,11 +182,19 @@ public class ParserTest {
 
   @Test
   public void testTimestampParsing() {
-    Timestamp value = new Timestamp(904910400000L);
+    long originalStartTime = 904910400000L;
+
+    // The following lines are necessary as the print state for Timezone corrects for current
+    //  timezone. As such we do a quick correction here for the user's current timezone.
+    long currentZoneOffset = ZonedDateTime.now().getOffset().getTotalSeconds() * 1000L;
+    long originalZoneOffset = -14400000L;
+    long adjustedStartTime = originalStartTime + currentZoneOffset - originalZoneOffset;
+    Timestamp value = new Timestamp(adjustedStartTime);
 
     byte[] byteResult = {-1, -1, -38, 1, -93, -70, 48, 0};
     byte[] stringResult = {'1', '9', '9', '8', '-', '0', '9', '-', '0', '4', ' ', '0', '8', ':',
         '0', '0', ':', '0', '0', '.', '0'};
+
 
     Parser parsedValue = new TimestampParser(value);
 
