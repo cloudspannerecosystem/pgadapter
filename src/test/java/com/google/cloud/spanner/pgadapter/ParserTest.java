@@ -36,7 +36,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -181,7 +180,9 @@ public class ParserTest {
   }
 
   @Test
-  public void testTimestampParsing() {
+  public void testTimestampParsingStringPart() {
+    // Timestamp parsing tests must be split between two tests since the string printing portion
+    // of the timestamp is dynamic (timezone specific), but the binary is not.
     long originalStartTime = 904910400000L;
 
     // The following lines are necessary as the print state for Timezone corrects for current
@@ -191,14 +192,27 @@ public class ParserTest {
     long adjustedStartTime = originalStartTime + currentZoneOffset - originalZoneOffset;
     Timestamp value = new Timestamp(adjustedStartTime);
 
-    byte[] byteResult = {-1, -1, -38, 1, -93, -70, 48, 0};
     byte[] stringResult = {'1', '9', '9', '8', '-', '0', '9', '-', '0', '4', ' ', '0', '8', ':',
         '0', '0', ':', '0', '0', '.', '0'};
 
+    Parser parsedValue = new TimestampParser(value);
+
+    assertThat(parsedValue.parse(DataFormat.POSTGRESQL_TEXT),
+        is(equalTo(stringResult)));
+    assertThat(parsedValue.parse(DataFormat.SPANNER),
+        is(equalTo(stringResult)));
+  }
+
+  @Test
+  public void testTimestampParsingBytePart() {
+    Timestamp value = new Timestamp(904910400000L);
+
+    byte[] byteResult = {-1, -1, -38, 1, -93, -70, 48, 0};
 
     Parser parsedValue = new TimestampParser(value);
 
-    validate(parsedValue, byteResult, stringResult, stringResult);
+    assertThat(parsedValue.parse(DataFormat.POSTGRESQL_BINARY),
+        is(equalTo(byteResult)));
   }
 
   @Test
