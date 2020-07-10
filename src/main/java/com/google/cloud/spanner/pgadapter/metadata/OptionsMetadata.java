@@ -128,7 +128,6 @@ public class OptionsMetadata {
    * @return The absolute path of the credentials file.
    */
   private String buildCredentialsFile(CommandLine commandLine) {
-    System.out.println("here");
     if (!commandLine.hasOption(OPTION_CREDENTIALS_FILE)) {
       String credentialsPath = Credentials.getApplicationDefaultCredentialsFilePath();
       if (credentialsPath == null) {
@@ -136,7 +135,6 @@ public class OptionsMetadata {
             "User must specify a valid credential file, "
             + "or have application default credentials set-up.");
       }
-      System.out.println(credentialsPath);
       return credentialsPath;
     }
     return commandLine.getOptionValue(OPTION_CREDENTIALS_FILE);
