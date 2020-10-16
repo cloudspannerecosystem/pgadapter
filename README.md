@@ -66,7 +66,7 @@ The following options are optional:
 -a
   * Use authentication when connecting. Currently authentication is not strictly
     implemented in the proxy layer, as it is expected to be run locally, and
-    will ignore any connection not stemming from localhost. However, it is a
+    will ignore any connection not stemming from localhost. It is however a
     useful compatibility option if the PostgreSQL client is set to always 
     authenticate. Note that SSL is not included for the same reason that
     authentication logic is not: since all connections are local, sniffing
@@ -182,4 +182,3 @@ path; All other items map directly to previously mentioned CLI options.
 
 Please feel free to report issues and send pull requests, but note that this 
 application is not officially supported as part of the Cloud Spanner Product.
-
