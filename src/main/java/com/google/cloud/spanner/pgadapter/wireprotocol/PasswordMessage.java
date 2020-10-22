@@ -16,6 +16,7 @@ package com.google.cloud.spanner.pgadapter.wireprotocol;
 
 import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse;
+import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse.State;
 import com.google.cloud.spanner.pgadapter.wireoutput.TerminateResponse;
 import java.text.MessageFormat;
 
@@ -39,7 +40,9 @@ public class PasswordMessage extends ControlMessage {
 
   protected void sendPayload() throws Exception {
     if(useAuthentication() && !checkCredentials(this.username, this.password)) {
-      new ErrorResponse(this.outputStream, new Exception("Could not Authenticate User")).send();
+      new ErrorResponse(this.outputStream,
+          new Exception("Could not Authenticate User"),
+          State.InternalError).send();
       new TerminateResponse(this.outputStream).send();
     } else {
       BootstrapMessage.sendStartupMessage(this.outputStream, this.connection.getConnectionId());

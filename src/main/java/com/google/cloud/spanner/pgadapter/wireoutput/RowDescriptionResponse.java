@@ -20,6 +20,7 @@ import com.google.cloud.spanner.pgadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
 import java.io.DataOutputStream;
 import java.sql.ResultSetMetaData;
+import java.text.MessageFormat;
 
 /**
  * Sends back qualifier for a row.
@@ -42,6 +43,7 @@ public class RowDescriptionResponse extends WireOutput {
   private final ResultSetMetaData metadata;
   private final QueryMode mode;
   private final OptionsMetadata options;
+  private final int columnCount;
 
   public RowDescriptionResponse(DataOutputStream output,
       IntermediateStatement statement,
@@ -53,6 +55,7 @@ public class RowDescriptionResponse extends WireOutput {
     this.metadata = metadata;
     this.options = options;
     this.mode = mode;
+    this.columnCount = metadata.getColumnCount();
   }
 
   private static int calculateLength(ResultSetMetaData metadata) throws Exception {
@@ -70,22 +73,26 @@ public class RowDescriptionResponse extends WireOutput {
 
   @Override
   protected void sendPayload() throws Exception {
-      this.outputStream.writeShort(metadata.getColumnCount());
+      this.outputStream.writeShort(this.columnCount);
       DataFormat defaultFormat
           = DataFormat.getDataFormat(0, this.statement, this.mode, this.options);
       for (int column_index = 1; /* columns start at 1 */
-          column_index <= metadata.getColumnCount();
+          column_index <= this.columnCount;
           column_index++) {
-        this.outputStream.write(metadata.getColumnName(column_index).getBytes(UTF8));
+        this.outputStream.write(this.metadata.getColumnName(column_index).getBytes(UTF8));
+        // If it can be identified as a column of a table, the object ID of the table.
         this.outputStream.writeByte(DEFAULT_FLAG);
+        // If it can be identified as a column of a table, the attribute number of the column
         this.outputStream.writeInt(DEFAULT_FLAG);
+        // The object ID of the field's data type.
         this.outputStream.writeShort(DEFAULT_FLAG);
-        this.outputStream.writeInt(metadata.getColumnType(column_index));
-        this.outputStream.writeShort(metadata.getColumnType(column_index));
+        this.outputStream.writeInt(this.metadata.getColumnType(column_index));
+        this.outputStream.writeShort(this.metadata.getColumnType(column_index));
+        // The type modifier. The meaning of the modifier is type-specific.
         this.outputStream.writeInt(DEFAULT_FLAG);
-        short format = statement == null ? defaultFormat.getCode()
-            : statement.getResultFormatCode(column_index) == 0 ? defaultFormat.getCode() :
-                statement.getResultFormatCode(column_index);
+        short format = this.statement == null ? defaultFormat.getCode()
+            : this.statement.getResultFormatCode(column_index) == 0 ? defaultFormat.getCode() :
+                this.statement.getResultFormatCode(column_index);
         this.outputStream.writeShort(format);
       }
       this.outputStream.flush();
@@ -104,6 +111,12 @@ public class RowDescriptionResponse extends WireOutput {
 
   @Override
   protected String getPayloadString() {
-    return "<REDACTED DUE TO LENGTH & PERFORMANCE CONSTRAINTS>";
+    return new MessageFormat(
+        "Length: {0}, "
+            + "Columns Returned: {1}")
+        .format(new Object[]{
+            this.length,
+            this.columnCount,
+        });
   }
 }

@@ -19,6 +19,7 @@ import com.google.cloud.spanner.pgadapter.statements.IntermediatePortalStatement
 import com.google.cloud.spanner.pgadapter.statements.IntermediatePreparedStatement;
 import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
 import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse;
+import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse.State;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import com.google.cloud.spanner.pgadapter.wireprotocol.BootstrapMessage;
 import com.google.cloud.spanner.pgadapter.wireprotocol.WireMessage;
@@ -151,7 +152,7 @@ public class ConnectionHandler extends Thread {
     logger.log(Level.WARNING,
         "Exception on connection handler with ID {0}: {2}",
         new Object[]{getName(), e});
-    new ErrorResponse(output, e).send();
+    new ErrorResponse(output, e, ErrorResponse.State.InternalError).send();
     new ReadyResponse(output, ReadyResponse.Status.IDLE).send();
   }
 
@@ -211,10 +212,7 @@ public class ConnectionHandler extends Thread {
    *
    * @param statement Currently executing statement to be saved.
    */
-  public void addActiveStatement(IntermediateStatement statement) {
-    // no need to synchronize since the cancel is already synchronized, and this can't be
-    // interrupted otherwise (one connection is not concurrent with itself)
-    // It's okay to overwrite
+  public synchronized void addActiveStatement(IntermediateStatement statement) {
     activeStatementsMap.put(this.connectionId, statement);
   }
 
@@ -224,10 +222,7 @@ public class ConnectionHandler extends Thread {
    *
    * @param statement The statement to be removed.
    */
-  public void removeActiveStatement(IntermediateStatement statement) {
-    // no need to synchronize since the cancel is already synchronized, and this can't be
-    // interrupted otherwise (one connection is not concurrent with itself)
-    // only remove if it's this statement
+  public synchronized void removeActiveStatement(IntermediateStatement statement) {
     if (activeStatementsMap.get(this.connectionId) == statement) {
       activeStatementsMap.remove(this.connectionId);
     }

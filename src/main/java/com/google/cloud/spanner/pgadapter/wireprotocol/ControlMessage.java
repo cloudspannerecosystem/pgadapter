@@ -21,6 +21,7 @@ import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
 import com.google.cloud.spanner.pgadapter.wireoutput.CommandCompleteResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.DataRowResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse;
+import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse.State;
 import com.google.cloud.spanner.pgadapter.wireoutput.PortalSuspendedResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import java.io.DataInputStream;
@@ -120,7 +121,7 @@ public abstract class ControlMessage extends WireMessage {
    * @throws Exception if there is some issue in the sending of the error messages.
    */
   protected void handleError(Exception e) throws Exception {
-    new ErrorResponse(this.outputStream, e).send();
+    new ErrorResponse(this.outputStream, e, State.InternalError).send();
     new ReadyResponse(this.outputStream, ReadyResponse.Status.IDLE).send();
   }
 

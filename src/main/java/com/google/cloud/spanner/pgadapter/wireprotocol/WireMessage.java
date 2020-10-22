@@ -129,7 +129,7 @@ public abstract class WireMessage {
   }
 
   /**
-   * Reads a fixed-length string from teh saved stream. The string still needs to be
+   * Reads a fixed-length string from the saved stream. The string still needs to be
    * null-terminated, but the read is more efficient, as we can read the entire string in one go
    * instead of continuously checking for a null-terminator.
    *
@@ -149,7 +149,10 @@ public abstract class WireMessage {
   }
 
   /**
-   * Reads a null-terminated string from a {@link DataInputStream}.
+   * Reads a null-terminated string from a {@link DataInputStream}. Note that though existing
+   * solutions for this exist, they are either not keyed exactly for our use case, or would lead
+   * to a more combersome addition to this codebase. Also note the 128 byte length is chosen
+   * from profiling and determining that it exceeds the 90th percentile size for inbound messages.
    *
    * @return the string.
    * @throws IOException if an error occurs while reading from the stream, or if no null-terminator

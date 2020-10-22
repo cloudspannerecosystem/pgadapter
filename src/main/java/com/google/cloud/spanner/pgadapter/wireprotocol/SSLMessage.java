@@ -20,8 +20,8 @@ import java.io.IOException;
 import java.text.MessageFormat;
 
 /**
- * Handles SSL boo message. Since we do not do SSL (connection is expected to be through localhost
- * after all), we decline the first message, and send an error for subsequent ones.
+ * Handles SSL bootstrap message. Since we do not do SSL (connection is expected to be through
+ * localhost after all), we decline the first message, and send an error for subsequent ones.
  */
 public class SSLMessage extends BootstrapMessage {
 
