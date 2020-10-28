@@ -42,7 +42,11 @@ public class StartupMessage extends BootstrapMessage {
   @Override
   protected void sendPayload() throws Exception {
     if (!authenticate) {
-      sendStartupMessage(this.outputStream, this.connection.getConnectionId());
+      sendStartupMessage(
+          this.outputStream,
+          this.connection.getConnectionId(),
+          this.connection.getSecret()
+      );
     } else {
       new MD5AuthenticationRequest(this.outputStream, 0).send();
     }

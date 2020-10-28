@@ -45,7 +45,11 @@ public class PasswordMessage extends ControlMessage {
           State.InternalError).send();
       new TerminateResponse(this.outputStream).send();
     } else {
-      BootstrapMessage.sendStartupMessage(this.outputStream, this.connection.getConnectionId());
+      BootstrapMessage.sendStartupMessage(
+          this.outputStream,
+          this.connection.getConnectionId(),
+          this.connection.getSecret()
+      );
     }
   }
 

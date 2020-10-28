@@ -19,7 +19,6 @@ import com.google.cloud.spanner.pgadapter.statements.IntermediatePortalStatement
 import com.google.cloud.spanner.pgadapter.statements.IntermediatePreparedStatement;
 import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
 import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse;
-import com.google.cloud.spanner.pgadapter.wireoutput.ErrorResponse.State;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import com.google.cloud.spanner.pgadapter.wireprotocol.BootstrapMessage;
 import com.google.cloud.spanner.pgadapter.wireprotocol.WireMessage;
@@ -29,9 +28,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,8 +58,10 @@ public class ConnectionHandler extends Thread {
   private final Map<String, IntermediatePreparedStatement> statementsMap = new HashMap<>();
   private final Map<String, IntermediatePortalStatement> portalsMap = new HashMap<>();
   private static volatile Map<Integer, IntermediateStatement> activeStatementsMap = new HashMap<>();
+  private static final Map<Integer, Integer> connectionToSecretMapping = new HashMap<>();
   private volatile ConnectionStatus status = ConnectionStatus.UNAUTHENTICATED;
   private int connectionId;
+  private final int secret;
   // Separate the following from the threat ID generator, since PG connection IDs are maximum
   //  32 bytes, and shouldn't be incremented on failed startups.
   private static AtomicInteger incrementingConnectionId = new AtomicInteger(0);
@@ -70,6 +73,7 @@ public class ConnectionHandler extends Thread {
     super("ConnectionHandler-" + CONNECTION_HANDLER_ID_GENERATOR.incrementAndGet());
     this.server = server;
     this.socket = socket;
+    this.secret = new SecureRandom().nextInt();
     this.jdbcConnection = DriverManager.getConnection(server.getOptions().getConnectionURL());
     setDaemon(true);
     logger.log(Level.INFO, "Connection handler with ID {0} created for client {1}",
@@ -234,10 +238,23 @@ public class ConnectionHandler extends Thread {
    * at best, it is not imperative that the cancellation run, but it should be attempted
    * nonetheless.
    *
-   * @param connectionId The connection whose statement must be cancelled.
+   * @param connectionId The connection owhose statement must be cancelled.
+   * @param secret The secret value linked to this connection. If it does not match, we cannot cancel.
    * @throws Exception If Cancellation fails.
    */
-  public synchronized void cancelActiveStatement(int connectionId) throws Exception {
+  public synchronized void cancelActiveStatement(int connectionId, int secret) throws Exception {
+    int expectedSecret = ConnectionHandler.connectionToSecretMapping.get(connectionId);
+    if(secret != expectedSecret) {
+      logger.log(Level.WARNING,
+          MessageFormat.format(
+              "User attempted to cancel a connection with the incorrect secret."
+              + "Connection: {}, Secret: {}, Expected Secret: {}",
+              connectionId, secret, expectedSecret
+          )
+      );
+      // Since the user does not accept a response, there is no need to except here: simply return.
+      return;
+    }
     if (activeStatementsMap.containsKey(connectionId)) {
       IntermediateStatement statement = activeStatementsMap.remove(connectionId);
       // We can mostly ignore the exception since cancel does not expect any result (positive or
@@ -279,8 +296,13 @@ public class ConnectionHandler extends Thread {
   public int getConnectionId() {
     if (this.connectionId == 0) {
       this.connectionId = ConnectionHandler.incrementingConnectionId.incrementAndGet();
+      ConnectionHandler.connectionToSecretMapping.put(this.connectionId, this.secret);
     }
     return this.connectionId;
+  }
+
+  public int getSecret() {
+    return this.secret;
   }
 
   public void setMessageState(WireMessage message) {

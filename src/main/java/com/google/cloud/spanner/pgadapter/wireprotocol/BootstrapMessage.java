@@ -80,11 +80,12 @@ public abstract class BootstrapMessage extends WireMessage {
    * PGAdapter specific parameters, and a ready signal.
    * @param output The data output stream to send results to.
    * @param connectionId The connection Id representing the current connection to send to client.
+   * @param secret The secret apposite this connection
    * @throws Exception
    */
-  public static void sendStartupMessage(DataOutputStream output, int connectionId) throws Exception {
+  public static void sendStartupMessage(DataOutputStream output, int connectionId, int secret) throws Exception {
       new AuthenticationOkResponse(output).send();
-      new KeyDataResponse(output, connectionId, 0).send();
+      new KeyDataResponse(output, connectionId, secret).send();
       new StartUpMessageResponse(output, "integer_datetimes".getBytes(), "on".getBytes()).send();
       new StartUpMessageResponse(output, "client_encoding".getBytes(), "utf8".getBytes()).send();
       new StartUpMessageResponse(output, "DateStyle".getBytes(), "ISO".getBytes()).send();

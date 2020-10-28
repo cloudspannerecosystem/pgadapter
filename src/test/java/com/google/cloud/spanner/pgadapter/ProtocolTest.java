@@ -1169,7 +1169,7 @@ public class ProtocolTest {
     byte[] length = intToBytes(16);
     byte[] protocol = intToBytes( 80877102);
     byte[] connectionId = intToBytes(1);
-    byte[] secret = intToBytes(0);
+    byte[] secret = intToBytes(1);
 
     byte[] value = Bytes.concat(
         length,
@@ -1183,6 +1183,7 @@ public class ProtocolTest {
     DataOutputStream outputStream = new DataOutputStream(result);
 
     Mockito.when(connectionHandler.getConnectionMetadata()).thenReturn(connectionMetadata);
+    Mockito.when(connectionHandler.getSecret()).thenReturn(1);
     Mockito.when(connectionMetadata.getInputStream()).thenReturn(inputStream);
     Mockito.when(connectionMetadata.getOutputStream()).thenReturn(outputStream);
 
@@ -1190,12 +1191,12 @@ public class ProtocolTest {
     Assert.assertEquals(message.getClass(), CancelMessage.class);
 
     Assert.assertEquals(((CancelMessage) message).getConnectionId(), 1);
-    Assert.assertEquals(((CancelMessage) message).getSecret(), 0);
+    Assert.assertEquals(((CancelMessage) message).getSecret(), 1);
 
     message.send();
 
     Mockito.verify(connectionHandler, Mockito.times(1))
-        .cancelActiveStatement(1);
+        .cancelActiveStatement(1, 1);
     Mockito.verify(connectionHandler, Mockito.times(1))
         .handleTerminate();
   }

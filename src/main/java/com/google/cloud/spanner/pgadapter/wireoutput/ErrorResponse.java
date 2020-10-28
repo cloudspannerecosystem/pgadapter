@@ -24,6 +24,7 @@ import java.text.MessageFormat;
 public class ErrorResponse extends WireOutput {
 
   private static final byte[] SEVERITY = "ERROR".getBytes(UTF8);
+  private static final byte[] SQL_STATE = "XX000".getBytes(UTF8);
   private static final int HEADER_LENGTH = 4;
   private static final int FIELD_IDENTIFIER_LENGTH = 1;
   private static final int NULL_TERMINATOR_LENGTH = 1;
