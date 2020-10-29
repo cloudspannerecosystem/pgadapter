@@ -52,6 +52,7 @@ public class DataRowResponse extends WireOutput {
     this.metadata = resultSet.getMetaData();
     this.columns = new ArrayList<>(this.metadata.getColumnCount());
     this.length = HEADER_LENGTH + COLUMN_NUMBER_LENGTH;
+    // TODO profile this with immense rows/column count to see if it's an aread of optimization.
     for (int column_index = 1; /* column indices start at 1 */
         column_index <= this.metadata.getColumnCount();
         column_index++) {

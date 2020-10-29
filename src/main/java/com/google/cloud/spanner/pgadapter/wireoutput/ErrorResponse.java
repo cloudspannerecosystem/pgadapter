@@ -36,7 +36,7 @@ public class ErrorResponse extends WireOutput {
 
 
   private final byte[] errorMessage;
-  private final byte[] errorState;
+  private final byte[] errorState; // TODO pull state from exception itself.
 
   public ErrorResponse(DataOutputStream output, Exception e, State errorState) {
     super(output,

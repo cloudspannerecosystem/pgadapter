@@ -179,6 +179,7 @@ public abstract class ControlMessage extends WireMessage {
     long rows = 0;
     boolean hasData = describedResult.isHasMoreData();
     ResultSet resultSet = describedResult.getStatementResult();
+    // TODO optimize loop
     while (hasData) {
       new DataRowResponse(
           this.outputStream, describedResult,

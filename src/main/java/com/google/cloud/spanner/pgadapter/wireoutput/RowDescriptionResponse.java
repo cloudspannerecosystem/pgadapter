@@ -82,6 +82,7 @@ public class RowDescriptionResponse extends WireOutput {
         this.outputStream.write(this.metadata.getColumnName(column_index).getBytes(UTF8));
         // If it can be identified as a column of a table, the object ID of the table.
         this.outputStream.writeByte(DEFAULT_FLAG);
+        // TODO: pass through Postgres types
         // If it can be identified as a column of a table, the attribute number of the column
         this.outputStream.writeInt(DEFAULT_FLAG);
         // The object ID of the field's data type.
