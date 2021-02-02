@@ -50,6 +50,9 @@ public abstract class ControlMessage extends WireMessage {
   public static ControlMessage create(ConnectionHandler connection)
       throws Exception {
     char nextMsg = (char) connection.getConnectionMetadata().getInputStream().readUnsignedByte();
+
+System.out.println("identifier: " + nextMsg);
+
     switch (nextMsg) {
       case QueryMessage.IDENTIFIER:
         return new QueryMessage(connection);

@@ -1,0 +1,11 @@
+{
+  "commands":
+  [
+    {
+      "input_pattern": "\"",
+      "output_pattern": "",
+      "matcher_array": [],
+      "blurb": ""
+    }
+  ]
+}

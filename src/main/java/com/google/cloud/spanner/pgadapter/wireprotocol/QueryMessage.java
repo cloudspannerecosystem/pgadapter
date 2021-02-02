@@ -18,6 +18,7 @@ import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.ConnectionHandler.QueryMode;
 import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
 import com.google.cloud.spanner.pgadapter.statements.PSQLStatement;
+import com.google.cloud.spanner.pgadapter.wireoutput.CommandCompleteResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.RowDescriptionResponse;
 import java.text.MessageFormat;
@@ -29,29 +30,47 @@ public class QueryMessage extends ControlMessage {
 
   protected static final char IDENTIFIER = 'Q';
 
+  private boolean skip;
+  private String body;
   private IntermediateStatement statement;
 
   public QueryMessage(ConnectionHandler connection) throws Exception {
     super(connection);
-    if (!connection.getServer().getOptions().isPSQLMode()) {
-      this.statement = new IntermediateStatement(
-          this.readAll(),
-          this.connection.getJdbcConnection()
-      );
+
+    body = this.readAll();
+    skip = body.startsWith("SET ");
+
+    System.out.println("query: " + body);
+
+    if (skip) {
+      statement = null;
     } else {
-      this.statement = new PSQLStatement(
-          this.readAll(),
-          this.connection
-      );
+      if (!connection.getServer().getOptions().isPSQLMode()) {
+        this.statement = new IntermediateStatement(
+            body,
+            this.connection.getJdbcConnection()
+        );
+      } else {
+        this.statement = new PSQLStatement(
+            body,
+            this.connection
+        );
+      }
+      this.connection.addActiveStatement(this.statement);
     }
-    this.connection.addActiveStatement(this.statement);
   }
 
   @Override
   protected void sendPayload() throws Exception {
-    this.statement.execute();
-    this.handleQuery();
-    this.connection.removeActiveStatement(this.statement);
+    if (skip) {
+      System.out.println("skip: " + body);
+      new CommandCompleteResponse(this.outputStream, "SET").send();
+      new ReadyResponse(this.outputStream, ReadyResponse.Status.IDLE).send();
+    } else {
+      this.statement.execute();
+      this.handleQuery();
+      this.connection.removeActiveStatement(this.statement);
+    }
   }
 
   @Override
@@ -63,7 +82,7 @@ public class QueryMessage extends ControlMessage {
   protected String getPayloadString() {
     return new MessageFormat(
         "Length: {0}, SQL: {1}")
-        .format(new Object[]{this.length, this.statement.getSql()});
+        .format(new Object[]{this.length, body});
   }
 
   @Override

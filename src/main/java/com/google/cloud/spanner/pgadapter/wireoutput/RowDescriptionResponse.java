@@ -79,18 +79,24 @@ public class RowDescriptionResponse extends WireOutput {
       for (int column_index = 1; /* columns start at 1 */
           column_index <= this.columnCount;
           column_index++) {
+
+        System.out.println("sending column ...");
+
         this.outputStream.write(this.metadata.getColumnName(column_index).getBytes(UTF8));
-        // If it can be identified as a column of a table, the object ID of the table.
         this.outputStream.writeByte(DEFAULT_FLAG);
+
+        // If it can be identified as a column of a table, the object ID of the table.
+        this.outputStream.writeInt(0);
         // TODO: pass through Postgres types
         // If it can be identified as a column of a table, the attribute number of the column
-        this.outputStream.writeInt(DEFAULT_FLAG);
+        // column index
+        this.outputStream.writeShort(column_index);
         // The object ID of the field's data type.
-        this.outputStream.writeShort(DEFAULT_FLAG);
-        this.outputStream.writeInt(this.metadata.getColumnType(column_index));
-        this.outputStream.writeShort(this.metadata.getColumnType(column_index));
-        // The type modifier. The meaning of the modifier is type-specific.
-        this.outputStream.writeInt(DEFAULT_FLAG);
+        this.outputStream.writeInt(1043);
+        // dtol
+        this.outputStream.writeShort(-1);
+        // dtszl
+        this.outputStream.writeInt(0);
         short format = this.statement == null ? defaultFormat.getCode()
             : this.statement.getResultFormatCode(column_index) == 0 ? defaultFormat.getCode() :
                 this.statement.getResultFormatCode(column_index);
@@ -98,7 +104,6 @@ public class RowDescriptionResponse extends WireOutput {
       }
       this.outputStream.flush();
   }
-
 
   @Override
   public byte getIdentifier() {
