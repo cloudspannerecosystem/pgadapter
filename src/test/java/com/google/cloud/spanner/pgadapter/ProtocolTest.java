@@ -456,6 +456,7 @@ public class ProtocolTest {
     Mockito.when(intermediatePreparedStatement.bind(
         ArgumentMatchers.any(),
         ArgumentMatchers.any(),
+        ArgumentMatchers.any(),
         ArgumentMatchers.any()))
         .thenReturn(intermediatePortalStatement);
 

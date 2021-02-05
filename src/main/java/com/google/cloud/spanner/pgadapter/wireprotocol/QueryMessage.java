@@ -22,15 +22,19 @@ import com.google.cloud.spanner.pgadapter.wireoutput.CommandCompleteResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.ReadyResponse;
 import com.google.cloud.spanner.pgadapter.wireoutput.RowDescriptionResponse;
 import java.text.MessageFormat;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Executes a simple statement.
  */
 public class QueryMessage extends ControlMessage {
 
+  private static final Logger logger = Logger.getLogger(QueryMessage.class.getName());
+
   protected static final char IDENTIFIER = 'Q';
 
-  private boolean skip;
+  private boolean skipSet;
   private String body;
   private IntermediateStatement statement;
 
@@ -38,17 +42,17 @@ public class QueryMessage extends ControlMessage {
     super(connection);
 
     body = this.readAll();
-    skip = body.startsWith("SET ");
+    skipSet = body.startsWith("SET ");
 
-    System.out.println("query: " + body);
+    logger.log(Level.FINE, "query: " + body);
 
-    if (skip) {
+    if (skipSet) {
       statement = null;
     } else {
       if (!connection.getServer().getOptions().isPSQLMode()) {
         this.statement = new IntermediateStatement(
             body,
-            this.connection.getJdbcConnection()
+            this.connection
         );
       } else {
         this.statement = new PSQLStatement(
@@ -56,14 +60,17 @@ public class QueryMessage extends ControlMessage {
             this.connection
         );
       }
+
+      logger.log(Level.FINE, "updated query: " + this.statement.getSql());
+
       this.connection.addActiveStatement(this.statement);
     }
   }
 
   @Override
   protected void sendPayload() throws Exception {
-    if (skip) {
-      System.out.println("skip: " + body);
+    if (skipSet) {
+      logger.log(Level.INFO, "skip set: " + body);
       new CommandCompleteResponse(this.outputStream, "SET").send();
       new ReadyResponse(this.outputStream, ReadyResponse.Status.IDLE).send();
     } else {

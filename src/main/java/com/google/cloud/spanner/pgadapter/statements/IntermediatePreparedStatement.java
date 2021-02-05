@@ -14,6 +14,7 @@
 
 package com.google.cloud.spanner.pgadapter.statements;
 
+import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.metadata.DescribeMetadata;
 import com.google.cloud.spanner.pgadapter.metadata.SQLMetadata;
 import com.google.cloud.spanner.pgadapter.parsers.Parser;
@@ -36,25 +37,20 @@ public class IntermediatePreparedStatement extends IntermediateStatement {
   protected List<Integer> parameterDataTypes;
 
 
-  public IntermediatePreparedStatement(String sql, Connection connection) throws SQLException {
-    super();
-    SQLMetadata parsedSQL = Converter.toJDBCParams(sql);
+  public IntermediatePreparedStatement(String sql, ConnectionHandler connectionHandler) throws SQLException {
+    this(Converter.toJDBCParams(sql), connectionHandler);
+  }
+
+  private IntermediatePreparedStatement(SQLMetadata parsedSQL, ConnectionHandler connectionHandler) throws SQLException {
+    super(parsedSQL.getSqlString(), connectionHandler, connectionHandler.getJdbcConnection().prepareStatement(parsedSQL.getSqlString()));
     this.parameterCount = parsedSQL.getParameterCount();
-    this.sql = parsedSQL.getSqlString();
-    this.command = parseCommand(sql);
-    this.connection = connection;
-    this.statement = this.connection.prepareStatement(this.sql);
     this.parameterDataTypes = null;
   }
 
   IntermediatePreparedStatement(
-      PreparedStatement statement, String sql, int totalParameters, Connection connection) {
-    super();
-    this.sql = sql;
-    this.command = parseCommand(sql);
+      PreparedStatement statement, String sql, int totalParameters, ConnectionHandler connectionHandler) {
+    super(sql, connectionHandler, statement);
     this.parameterCount = totalParameters;
-    this.statement = statement;
-    this.connection = connection;
     this.parameterDataTypes = null;
   }
 
@@ -90,7 +86,7 @@ public class IntermediatePreparedStatement extends IntermediateStatement {
   public void execute() {
     this.executed = true;
     try {
-      ((PreparedStatement) this.statement).execute();
+      ((PreparedStatement) this.getStatement()).execute();
       this.executeHelper();
     } catch (SQLException e) {
       handleExecutionException(e);
@@ -110,12 +106,13 @@ public class IntermediatePreparedStatement extends IntermediateStatement {
   public IntermediatePortalStatement bind(
       byte[][] parameters,
       List<Short> parameterFormatCodes,
-      List<Short> resultFormatCodes) throws SQLException {
+      List<Short> resultFormatCodes,
+      ConnectionHandler connectionHandler) throws SQLException {
     IntermediatePortalStatement portal = new IntermediatePortalStatement(
-        this.connection.prepareStatement(this.sql),
-        this.sql,
+        this.getConnection().prepareStatement(this.getSql()),
+        this.getSql(),
         this.parameterCount,
-        this.connection
+        connectionHandler
     );
     portal.setParameterFormatCodes(parameterFormatCodes);
     portal.setResultFormatCodes(resultFormatCodes);
@@ -123,7 +120,7 @@ public class IntermediatePreparedStatement extends IntermediateStatement {
       short formatCode = portal.getParameterFormatCode(index);
       int type = this.parseType(parameters, index);
       if (formatCode == 0) {
-        ((PreparedStatement) portal.statement).setObject(
+        ((PreparedStatement) portal.getStatement()).setObject(
             index + 1,
             Parser.create(
                 parameters[index], type).getItem());

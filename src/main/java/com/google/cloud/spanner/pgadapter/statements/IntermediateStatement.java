@@ -15,12 +15,20 @@
 package com.google.cloud.spanner.pgadapter.statements;
 
 import com.google.cloud.spanner.jdbc.JdbcConstants;
+import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.metadata.DescribeMetadata;
+import com.google.cloud.spanner.pgadapter.metadata.QueryRewritesMetadata;
 import com.google.common.base.Preconditions;
+import org.json.simple.JSONObject;
+
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 /**
@@ -30,31 +38,48 @@ import java.util.logging.Logger;
  */
 public class IntermediateStatement {
 
-  protected Statement statement;
-  protected ResultType resultType;
-  protected ResultSet statementResult;
-  protected boolean hasMoreData;
-  protected Exception exception;
-  protected String sql;
-  protected String command;
+  private final Statement statement;
+  private final String sql;
+  private final Connection connection;
+  private final String command;
+
+  private ResultType resultType;
+  private ResultSet statementResult;
+  private boolean hasMoreData;
+  private Exception exception;
+  private Integer updateCount;
+  
   protected boolean executed;
-  protected Connection connection;
-  protected Integer updateCount;
-  public IntermediateStatement(String sql, Connection connection) throws SQLException {
-    this();
-    this.sql = sql;
-    this.command = parseCommand(sql);
-    this.connection = connection;
-    this.statement = connection.createStatement();
+
+  public IntermediateStatement(String sql, ConnectionHandler connectionHandler, Function<String,String> translateSQL) throws SQLException {
+    this(translateSQL.apply(sql), connectionHandler, connectionHandler.getJdbcConnection().createStatement(), translateSQL);
   }
 
-  protected IntermediateStatement() {
+  public IntermediateStatement(String sql, ConnectionHandler connectionHandler, Statement statement, Function<String,String> translateSQL) {
+
+    List<QueryRewritesMetadata> rewrites = Optional.ofNullable(connectionHandler.getServer()).
+            map(x->x.getOptions().getQueryRewritesJSON()).orElse(Collections.emptyList());
+
+    this.sql = rewriteQuery(sql, rewrites);
+    this.command = parseCommand(sql);
+    this.connection = connectionHandler.getJdbcConnection();
+    this.statement = statement;
+    
+
     this.executed = false;
     this.exception = null;
     this.resultType = null;
     this.hasMoreData = false;
     this.statementResult = null;
     this.updateCount = null;
+  }
+
+  public IntermediateStatement(String sql, ConnectionHandler connectionHandler, Statement statement) {
+    this(sql, connectionHandler, statement, x -> x);
+  }
+
+  public IntermediateStatement(String sql, ConnectionHandler connectionHandler) throws SQLException {
+    this(sql, connectionHandler, x -> x);
   }
 
   /**
@@ -153,6 +178,10 @@ public class IntermediateStatement {
     return this.statement;
   }
 
+  protected Connection getConnection() {
+    return this.connection;
+  }
+  
   public ResultSet getStatementResult() {
     return this.statementResult;
   }
@@ -238,5 +267,23 @@ public class IntermediateStatement {
     return this.command;
   }
 
+  /**
+   * foldLeft application of all rewrites on the sql string
+   * @param sql
+   * @param rewrites
+   * @return the sql with all the rewrites applied in order
+   */
+  private String rewriteQuery(String sql, List<QueryRewritesMetadata> rewrites) {
+    String rewrittenSql = sql;
+    for ( QueryRewritesMetadata rewrite : rewrites) {
+      rewrittenSql = rewriteQuery(rewrittenSql, rewrite);
+    }
+    return rewrittenSql;
+  }
+
+  private String rewriteQuery(String sql, QueryRewritesMetadata rewrite) {
+    return sql.replaceAll(rewrite.getInputPattern(), rewrite.getOutputPattern());
+  }
+  
   public enum ResultType {UPDATE_COUNT, RESULT_SET, NO_RESULT}
 }

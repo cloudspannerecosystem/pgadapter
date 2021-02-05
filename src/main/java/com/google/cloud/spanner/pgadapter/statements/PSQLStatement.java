@@ -16,6 +16,8 @@ package com.google.cloud.spanner.pgadapter.statements;
 
 import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.commands.Command;
+
+import java.sql.Connection;
 import java.sql.SQLException;
 import org.json.simple.JSONObject;
 
@@ -27,15 +29,8 @@ import org.json.simple.JSONObject;
  */
 public class PSQLStatement extends IntermediateStatement {
 
-  private JSONObject commandMetadataJSON;
-
   public PSQLStatement(String sql, ConnectionHandler connectionHandler) throws SQLException {
-    super();
-    this.connection = connectionHandler.getJdbcConnection();
-    this.statement = this.connection.createStatement();
-    this.commandMetadataJSON = connectionHandler.getServer().getOptions().getCommandMetadataJSON();
-    this.sql = translateSQL(sql);
-    this.command = parseCommand(sql);
+    super(sql, connectionHandler, x->translateSQL(x, connectionHandler));
   }
 
   @Override
@@ -51,9 +46,11 @@ public class PSQLStatement extends IntermediateStatement {
    * @return The translated SQL statement if it matches any {@link Command} statement. Otherwise
    * gives out the original Statement.
    */
-  private String translateSQL(String sql) {
+  private static String translateSQL(String sql, ConnectionHandler connectionHandler) {
+    Connection connection = connectionHandler.getJdbcConnection();
+    JSONObject commandMetadataJSON = connectionHandler.getServer().getOptions().getCommandMetadataJSON();
     for (Command currentCommand : Command
-        .getCommands(sql, this.connection, this.commandMetadataJSON)) {
+        .getCommands(sql, connection, commandMetadataJSON)) {
       if (currentCommand.is()) {
         return currentCommand.translate();
       }

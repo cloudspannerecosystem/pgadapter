@@ -19,6 +19,10 @@ import com.google.cloud.spanner.pgadapter.utils.Credentials;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -43,6 +47,7 @@ public class OptionsMetadata {
   private static final String OPTION_AUTHENTICATE = "a";
   private static final String OPTION_PSQL_MODE = "q";
   private static final String OPTION_COMMAND_METADATA_FILE = "j";
+  private static final String OPTION_QUERY_REWRITES_FILE = "r";
   private static final String COMMAND_METADATA_FILE_DEFAULT = "metadata/command_metadata.json";
   private static final String CLI_ARGS =
       "gcpga -p <project> -i <instance> -d <database> -c <credentials_file>";
@@ -58,6 +63,7 @@ public class OptionsMetadata {
   private final boolean authenticate;
   private final boolean psqlMode;
   private final JSONObject commandMetadataJSON;
+  private final List<QueryRewritesMetadata> queryRewritesJSON;
 
   public OptionsMetadata(String[] args) {
     CommandLine commandLine = buildOptions(args);
@@ -68,6 +74,7 @@ public class OptionsMetadata {
     this.authenticate = commandLine.hasOption(OPTION_AUTHENTICATE);
     this.psqlMode = commandLine.hasOption(OPTION_PSQL_MODE);
     this.commandMetadataJSON = buildCommandMetadataJSON(commandLine);
+    this.queryRewritesJSON = buildQueryRewritesJSON(commandLine);
   }
 
   public OptionsMetadata(String connectionURL,
@@ -76,7 +83,8 @@ public class OptionsMetadata {
       boolean forceBinary,
       boolean authenticate,
       boolean psqlMode,
-      JSONObject commandMetadata) {
+      JSONObject commandMetadata,
+      List<QueryRewritesMetadata> queryRewrites) {
     this.connectionURL = connectionURL;
     this.proxyPort = proxyPort;
     this.textFormat = textFormat;
@@ -84,6 +92,7 @@ public class OptionsMetadata {
     this.authenticate = authenticate;
     this.psqlMode = psqlMode;
     this.commandMetadataJSON = commandMetadata;
+    this.queryRewritesJSON = queryRewrites;
   }
 
   public static String getDefaultCommandMetadataFilePath() {
@@ -179,22 +188,60 @@ public class OptionsMetadata {
     File commandMetadataFile = new File(commandLine.getOptionValue(
         OPTION_COMMAND_METADATA_FILE,
         COMMAND_METADATA_FILE_DEFAULT));
+    
+    return loadJSON(Optional.of(commandMetadataFile), "command metadata")
+            .orElseGet(() -> parseEmptyJson(EMPTY_COMMAND_JSON));
+  }
+
+  /**
+   * Takes the content of the specified (or default) query rewrites file and parses it into JSON format. If
+   * finding the file fails in any-way, print an error and keep going with an empty spec.
+   *
+   * @param commandLine The parsed options for CLI
+   * @return The decoded rewrites specified within the specified file
+   */
+  private List<QueryRewritesMetadata> buildQueryRewritesJSON(CommandLine commandLine) {
+    Optional<String> filePath = Optional.ofNullable(commandLine.getOptionValue(OPTION_QUERY_REWRITES_FILE));
+    
+    return loadJSON(filePath.map(x->new File(x)), "query rewrites").map(
+      x -> QueryRewritesMetadata.fromJSON(x)
+    ).orElse(Collections.emptyList());
+  }
+
+  /**
+   * General load JSON method for loading configs
+   * @param fileOpt
+   * @param description
+   * @return the JSONObject representation of the config
+   */
+  private Optional<JSONObject> loadJSON(Optional<File> fileOpt, String description) {
     JSONParser parser = new JSONParser();
-    try {
-      return (JSONObject) parser
-          .parse(new String(Files.readAllBytes(commandMetadataFile.toPath())));
-    } catch (IOException e) {
-      System.err.println(String
-          .format("Specified command metadata file %s not found! Ignoring commands metadata file.",
-              commandMetadataFile));
+    return fileOpt.flatMap(file -> {
       try {
-        return (JSONObject) parser.parse(EMPTY_COMMAND_JSON);
-      } catch (org.json.simple.parser.ParseException ex) {
-        throw new IllegalArgumentException(
-            "Something went wrong! Processing empty JSON file failed!", e);
+        return Optional.of((JSONObject) parser
+                .parse(new String(Files.readAllBytes(file.toPath()))));
+      } catch (IOException e) {
+        System.err.println(String
+                .format("Specified %s file %s not found! Ignoring commands metadata file.",
+                        description, file));
+        return Optional.empty();
+      } catch (org.json.simple.parser.ParseException e) {
+        throw new IllegalArgumentException("Unable to process provided JSON file:", e);
       }
-    } catch (org.json.simple.parser.ParseException e) {
-      throw new IllegalArgumentException("Unable to process provided JSON file:", e);
+    });
+  }
+
+  /**
+   * Load the empty JSON or throw runtime error
+   * @param emptyJSON
+   * @return the empty JSON
+   */
+  private JSONObject parseEmptyJson(String emptyJSON) {
+    try {
+      return (JSONObject) new JSONParser().parse(emptyJSON);
+    } catch (org.json.simple.parser.ParseException ex) {
+      throw new IllegalArgumentException(
+              "Something went wrong! Processing empty JSON file failed!", ex);
     }
   }
 
@@ -232,6 +279,8 @@ public class OptionsMetadata {
         "The full path of the file containing the metadata specifications for psql-mode's "
             + "dynamic matcher. Each item in this matcher will create a runtime-generated command "
             + "which will translate incoming commands into whatever back-end SQL is desired.");
+    options.addOption(OPTION_QUERY_REWRITES_FILE, "query-rewrites-metadata", true,
+            "The full path of the file containing query rewrite instructions.");
     options.addOption(OPTION_HELP, "help", false,
         "Print help."
     );
@@ -265,6 +314,10 @@ public class OptionsMetadata {
 
   public JSONObject getCommandMetadataJSON() {
     return this.commandMetadataJSON;
+  }
+
+  public List<QueryRewritesMetadata> getQueryRewritesJSON() {
+    return this.queryRewritesJSON;
   }
 
   public String getConnectionURL() {

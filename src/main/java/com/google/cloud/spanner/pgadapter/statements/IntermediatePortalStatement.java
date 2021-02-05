@@ -14,6 +14,7 @@
 
 package com.google.cloud.spanner.pgadapter.statements;
 
+import com.google.cloud.spanner.pgadapter.ConnectionHandler;
 import com.google.cloud.spanner.pgadapter.metadata.DescribeMetadata;
 import com.google.cloud.spanner.pgadapter.metadata.DescribePortalMetadata;
 import java.sql.Connection;
@@ -33,8 +34,8 @@ public class IntermediatePortalStatement extends IntermediatePreparedStatement {
   protected List<Short> resultFormatCodes;
 
   public IntermediatePortalStatement(
-      PreparedStatement statement, String sql, int parameterCount, Connection connection) {
-    super(statement, sql, parameterCount, connection);
+      PreparedStatement statement, String sql, int parameterCount, ConnectionHandler connectionHandler) {
+    super(statement, sql, parameterCount, connectionHandler);
     this.parameterFormatCodes = new ArrayList<>();
     this.resultFormatCodes = new ArrayList<>();
   }
@@ -71,7 +72,7 @@ public class IntermediatePortalStatement extends IntermediatePreparedStatement {
   @Override
   public DescribeMetadata describe() throws Exception {
     try {
-      ResultSetMetaData metaData = ((PreparedStatement) this.statement).getMetaData();
+      ResultSetMetaData metaData = ((PreparedStatement) this.getStatement()).getMetaData();
       return new DescribePortalMetadata(metaData);
     } catch (SQLException e) {
       /* Generally this error will occur when a non-SELECT portal statement is described in Spanner,

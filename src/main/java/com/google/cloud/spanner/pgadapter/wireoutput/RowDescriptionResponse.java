@@ -18,8 +18,11 @@ import com.google.cloud.spanner.pgadapter.ConnectionHandler.QueryMode;
 import com.google.cloud.spanner.pgadapter.ProxyServer.DataFormat;
 import com.google.cloud.spanner.pgadapter.metadata.OptionsMetadata;
 import com.google.cloud.spanner.pgadapter.statements.IntermediateStatement;
+import org.postgresql.core.Oid;
+
 import java.io.DataOutputStream;
 import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.text.MessageFormat;
 
 /**
@@ -80,23 +83,23 @@ public class RowDescriptionResponse extends WireOutput {
           column_index <= this.columnCount;
           column_index++) {
 
-        System.out.println("sending column ...");
-
+        // column name - null terminated string
         this.outputStream.write(this.metadata.getColumnName(column_index).getBytes(UTF8));
-        this.outputStream.writeByte(DEFAULT_FLAG);
+        this.outputStream.writeByte(0);
 
         // If it can be identified as a column of a table, the object ID of the table.
-        this.outputStream.writeInt(0);
+        this.outputStream.writeInt(DEFAULT_FLAG);
         // TODO: pass through Postgres types
         // If it can be identified as a column of a table, the attribute number of the column
         // column index
         this.outputStream.writeShort(column_index);
         // The object ID of the field's data type.
-        this.outputStream.writeInt(1043);
-        // dtol
+        this.outputStream.writeInt(inferPGOidFromMetadata(column_index));
+        // Data type size - perhaps something could be inferred from metadata precision/scale
         this.outputStream.writeShort(-1);
-        // dtszl
-        this.outputStream.writeInt(0);
+        // type modifier - perhaps something could be inferred from metadata precision/scale
+        this.outputStream.writeInt(DEFAULT_FLAG);
+        // format code
         short format = this.statement == null ? defaultFormat.getCode()
             : this.statement.getResultFormatCode(column_index) == 0 ? defaultFormat.getCode() :
                 this.statement.getResultFormatCode(column_index);
@@ -105,6 +108,16 @@ public class RowDescriptionResponse extends WireOutput {
       this.outputStream.flush();
   }
 
+  private int inferPGOidFromMetadata(int columnIndex) throws SQLException {
+    switch (metadata.getColumnTypeName(columnIndex)) {
+      case "STRING": return Oid.VARCHAR;
+      case "FLOAT64": return Oid.FLOAT8;
+      case "INT64": return Oid.INT8;
+      case "DATE": return Oid.DATE;
+      default: return 0;
+    }
+  }
+  
   @Override
   public byte getIdentifier() {
     return 'T';

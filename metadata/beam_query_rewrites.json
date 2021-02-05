@@ -1,0 +1,21 @@
+{
+  "rewrites":
+  [
+    {
+      "input_pattern": "\"",
+      "output_pattern": ""
+    },
+    {
+      "input_pattern": "DOUBLE PRECISION",
+      "output_pattern": "FLOAT64"
+    },
+    {
+      "input_pattern": "''",
+      "output_pattern": "\\\\'"
+    },
+    {
+      "input_pattern": "'0.0'",
+      "output_pattern": "0.0"
+    }
+  ]
+}

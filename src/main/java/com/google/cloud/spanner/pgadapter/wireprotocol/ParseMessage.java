@@ -45,7 +45,7 @@ public class ParseMessage extends ControlMessage {
     }
     this.statement = new IntermediatePreparedStatement(
         queryString,
-        connection.getJdbcConnection());
+        connection);
     this.statement.setParameterDataTypes(this.parameterDataTypes);
   }
 
